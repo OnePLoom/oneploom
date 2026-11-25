@@ -59,6 +59,24 @@ feat: 프로젝트 경로 확인 추가
 
 제목은 `[FEATURE] 요약`, `[FIX] 요약`, `[BUG] 요약`, `[REFACTOR] 요약`, `[CHORE] 요약`, `[HELP] 요약`이며 문서 전용 작업은 `[DOCS] 요약`을 사용한다. 유형에 맞춰 배경, 재현/기대 동작, 요구와 범위, 검증 계획을 작성한다. 이슈는 구현 전의 목적과 계획이며 미검증 동작을 완료로 표시하지 않는다. 수용 조건은 짧은 명사형 체크리스트로 작성한다.
 
+### 공개 이슈 템플릿
+
+GitHub의 New issue 화면에서 작업에 맞는 양식을 선택한다. 기본 작성 구조는 다음 공개 템플릿이 소유하며 웹, CLI나 다른 작성 도구에서도 같은 양식을 사용할 수 있다.
+
+| 작업 | 템플릿 |
+| --- | --- |
+| 새 기능과 개선 | [feature.md](.github/ISSUE_TEMPLATE/feature.md) |
+| 원인 미확정 오류 제보 | [bug.md](.github/ISSUE_TEMPLATE/bug.md) |
+| 확인한 문제의 수정 계획 | [fix.md](.github/ISSUE_TEMPLATE/fix.md) |
+| 기존 동작을 유지하는 구조 개선 | [refactor.md](.github/ISSUE_TEMPLATE/refactor.md) |
+| 개발 환경과 운영 정리 | [chore.md](.github/ISSUE_TEMPLATE/chore.md) |
+| 질문과 도움 | [help.md](.github/ISSUE_TEMPLATE/help.md) |
+| 코드 저장소의 문서 추가와 수정 | [docs.md](.github/ISSUE_TEMPLATE/docs.md) |
+
+WIKI만의 작업은 WIKI 저장소의 CONTRIBUTING과 템플릿을 사용한다. 코드와 WIKI가 함께 바뀌는 작업은 위 원칙대로 공통 이슈 하나에 두 범위를 적는다. 이미 같은 제보가 있으면 수정 계획을 위해 별도 이슈를 중복 생성하지 않는다.
+
+작성자는 알고 있는 내용과 확인한 근거를 채운다. 원인이나 해결 방법을 모른다고 제보를 미룰 필요는 없다. 선택 항목은 `_No response_`로 남길 수 있으며, 중요한 미확인 상태나 실패는 이유를 적는다. Markdown 템플릿은 작성 보조이며 필수 입력이나 요구 충족을 자동 검사하지 않는다.
+
 ### 담당자와 분류
 
 이슈 생성 또는 재사용 때 실제 작업 담당자, 작업 성격에 맞는 기존 Labels와 Issue Type을 채운다. 제목의 유형을 출발점으로 삼되 실제 범위와 대조한다. 새 기능은 Feature, 오류 수정은 Bug, 문서/정리/검증 작업은 Task를 기본으로 하며 저장소에서 지원하는 유형을 먼저 확인한다. 라벨은 여러 성격을 함께 나타낼 수 있고, Type은 작업의 큰 분류 하나다. 기존 담당자와 분류를 근거 없이 제거하지 않는다.
@@ -80,6 +98,8 @@ OnePLoom Project에는 작업 이슈만 등록한다. PR은 별도 항목으로 
 작업 전에는 Ready, 개발 중에는 In progress, 필요한 PR이 검토 가능한 상태면 In review로 관리한다. 한쪽 PR만 병합됐거나 필요한 검증이 남으면 이슈를 열어 두고 남은 작업을 진행 기록에 적는다. 필요한 두 PR의 실제 병합과 결과 확인 후 이슈를 닫고 Done으로 옮긴다.
 
 ## PR 작성과 코드/WIKI 연결
+
+이 저장소의 기본 양식은 [.github/pull_request_template.md](.github/pull_request_template.md)다. WIKI PR은 WIKI 저장소의 같은 경로에 있는 문서용 양식을 사용한다. 이슈와 PR 템플릿은 기본 브랜치에 병합된 뒤 GitHub 새 작성 화면에 적용되며, 기존 이슈/PR의 본문을 자동으로 바꾸지 않는다. CLI/API에서 본문을 직접 전달할 때도 템플릿의 항목을 실제 변경과 근거로 채운다.
 
 제목은 `type: 변경 요약`으로 작성한다. 본문은 아래 순서를 사용하고 적용 값이 없는 선택 항목에는 `_No response_`를 적는다. 검증 실패나 중요한 미실행을 값이 없는 항목처럼 숨기지 않는다.
 
