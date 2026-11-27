@@ -1,0 +1,35 @@
+name: Windows verification
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-tests:
+    name: Windows tests
+    runs-on: windows-2025
+    permissions:
+      contents: read
+    # Initial hang limit; review against hosted setup and test durations.
+    timeout-minutes: 15
+    steps:
+      - name: Check out the tested revision
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Run the Windows test suite
+        shell: pwsh
+        run: python -B -X utf8 -W error::DeprecationWarning tools/run_tests.py
