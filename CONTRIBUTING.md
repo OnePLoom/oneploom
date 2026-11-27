@@ -141,10 +141,12 @@ PR의 base(병합 대상)와 head(제출 브랜치)를 명시한다. base 이후
 Windows에서 저장소 루트를 작업 폴더로 두고 다음 검사를 실행한다. Python 표준 라이브러리만 사용하며 Git과 Windows PowerShell이 필요하다.
 
 ```powershell
-py -3 -B -X utf8 -W error::DeprecationWarning -m unittest discover -s tests -v
+py -3 -B -X utf8 -W error::DeprecationWarning tools/run_tests.py
 ```
 
 `tests/test_cli.py`는 입력과 선택, `tests/test_project.py`는 경로/설정과 실제 Git 경계, `tests/test_windows.py`는 사용자 폴더 조회, `tests/test_process.py`는 실제 Python/PowerShell 프로세스와 파일 접근 실패를 확인한다. 합성 Git 작업 사본은 임시 폴더에서 만들고 검사 후 정리한다. 기존 프로젝트와 사용자 설정을 수정하지 않는다. Windows 이외의 OS에서 건너뛴 검사를 통과로 세지 않는다.
+
+`tools/run_tests.py`는 환경 확인과 전체 테스트 발견, 결과 판정을 담당한다. 테스트가 없거나 하나라도 실패하거나 건너뛰면 성공으로 종료하지 않는다. 실행 위치가 달라도 스크립트가 속한 저장소를 검사한다. `tests/test_runner.py`는 합성 테스트를 별도 Python 프로세스로 실행해 이 판정과 중단 처리를 확인한다. 일부 테스트만 직접 실행한 결과는 전체 검사 통과와 구분한다.
 
 현재 자동 검사는 개발 작업본의 발견 기능에 한정된다. 설치, PATH 등록, 실제 Codex 대화와 배포 패키지 검증을 대신하지 않는다. 문서 변경은 링크/경로, 요구와 결정의 상태, 실제 검증 범위와 자격증명 포함 여부를 확인한다.
 
@@ -152,13 +154,39 @@ py -3 -B -X utf8 -W error::DeprecationWarning -m unittest discover -s tests -v
 
 WIKI에서는 요구사항, 설계, 결정, 검증 결과를 구분하고 같은 규칙의 원본을 한 곳에 둔다. 설명은 한국어로 작성하고 관계를 문장으로 표현한다. 가운뎃점으로 여러 의미를 축약하지 않는다. 파일 이동 시 링크와 입력/출력 경로를 함께 대조한다.
 
+### Windows CI
+
+[windows-tests.yml](.github/workflows/windows-tests.yml)의 `Windows tests` job은 위와 같은 스크립트와 Python 실행 옵션으로 `tests` 전체를 검사한다. YAML은 실행 조건, 권한과 Windows Server 2025/Python 3.13 준비를 담당하며 테스트 발견/성공 판정은 복제하지 않는다. Python의 패치 버전과 Git, PowerShell 버전은 실행 로그에 남긴다. 이 환경은 개발 검사 기준이며 제품의 지원 버전을 고정하거나 실제 Windows 11 사용 검증을 대체하지 않는다.
+
+PR 생성/변경과 main push에서 실행한다. PR에는 파일 경로 필터를 두지 않고, 작업 브랜치 push에는 별도 실행하지 않아 동일 제출의 중복 검사를 줄인다. 같은 PR 또는 같은 이벤트/참조에 새 실행이 생기면 이전 실행을 취소하고 최신 결과를 확인한다. 별도 수동 시작 이벤트는 두지 않는다. 일시적인 준비 실패는 Actions의 기존 실행에서 Re-run jobs로 재시도하고, 코드를 수정했다면 새 커밋의 검사를 확인한다.
+
+준비 단계나 테스트가 실패하면 검사도 실패한다. 이후 의도적인 선택 검사가 필요하면 실행 조건과 필수 검사의 범위를 함께 검토한다. job의 15분은 실행이 멈췄을 때 계속 점유하지 않도록 둔 초기 상한이다. 테스트의 예상 소요 시간이나 실측 최적값이 아니며, 원격 실행의 준비/검사 시간과 시간 초과 원인을 확인한 뒤 조정한다. 시간 초과는 성공으로 처리하지 않고 제품 명령의 실행 시간 제한으로도 사용하지 않는다.
+
+workflow의 기본 토큰 권한은 비워 두고 검사 job에만 `contents: read`를 부여한다. 이는 GitHub 저장소 API의 권한이며 실행기 안의 임시 파일 쓰기를 막는 설정이 아니다. checkout 자격증명을 후속 Git 명령에 남기지 않고, 외부 PR 코드를 높은 권한으로 실행하는 `pull_request_target`은 사용하지 않는다.
+
+공식 `actions/checkout`과 `actions/setup-python`은 메이저 버전 태그 `@v7`로 지정한다. 같은 메이저의 호환되는 수정 사항을 받으며, 새 메이저로 바꿀 때는 변경 내용과 CI를 검토한다. 같은 메이저에서도 회귀 오류가 생길 수 있으므로 실패 원인을 확인하고, 필요한 경우 정상 동작을 확인한 릴리스나 SHA로 일시 고정한다. 이 선택은 현재 공식 Action 두 개를 사용하는 테스트 CI에 적용하며, 배포나 외부 Action 추가 시에는 권한과 실행 코드 고정 필요성을 다시 평가한다. [공식 Actions 버전 운영 안내](https://github.com/actions/toolkit/blob/main/docs/action-versioning.md)를 참고한다.
+
+두 도구의 라이선스는 MIT이며 확인한 버전의 [checkout 고지](https://github.com/actions/checkout/blob/3d3c42e5aac5ba805825da76410c181273ba90b1/LICENSE), [setup-python 고지](https://github.com/actions/setup-python/blob/6d4fd22b20465ccc0f7354476588e8df7c9ca0e0/LICENSE)를 따른다. CI에서 내려받으며 제품에 포함하지 않는다.
+
+실제 GitHub 실행 성공과 필수 검사 등록은 별도로 확인한다. workflow 파일이 있다는 사실만으로 원격 실행 성공이나 main 보호 설정 완료를 판단하지 않는다. 실패 시 Actions 로그에서 준비 실패, 테스트 실패, 누락/skip, 시간 초과를 구분하고 원인을 수정한 뒤 같은 검사를 다시 실행한다.
+
+### CI의 비밀값 관리
+
+현재 Windows 검사에는 사용자가 등록할 Secret이나 개인 액세스 토큰이 없다. checkout은 GitHub가 실행마다 제공하는 `GITHUB_TOKEN`을 사용한다. 실행 버전, 공개 커밋 SHA와 테스트 옵션은 비밀값이 아니다. 저장소나 로그에 실제 토큰, 비밀번호와 개인키를 넣지 않는다.
+
+이후 실제 비밀값이 필요한 작업을 추가하면 해당 저장소의 Settings → Secrets and variables → Actions → Secrets에서 등록하고, 필요한 job/step에만 주입한다. 배포용 비밀값을 외부 PR 검사에 전달하지 않는다. 공개해도 되는 설정은 일반 설정이나 Variables를 사용한다. [GitHub의 Secret 등록과 사용 안내](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets)를 따른다.
+
+이미 공개한 자격증명은 파일에서 숨기기만 해서는 보호되지 않는다. 해당 값을 폐기/교체하고 노출 범위를 확인한다. 검사나 보고에는 실제 값 대신 파일 위치와 필요한 조치만 남긴다.
+
 ### CI 확장 기준
 
 CI는 검증 목적별로 분리한다. 실행 환경, 필요한 권한, 발동 조건이나 실패 대응이 다르면 별도 workflow를 사용하고, 같은 실행 조건의 검사는 독립 job으로 구성할 수 있다. 새 CI를 추가할 때마다 하나의 거대한 스크립트나 무관한 필수 검사를 늘리지 않는다.
 
+로컬과 CI가 공유해야 하는 검사 기준은 일반 코드 한곳에서 관리한다. checkout처럼 모양이 같은 단계만으로 재사용 workflow를 만들지는 않는다. 실제 여러 사용처가 같은 입력, 권한과 실패 계약을 공유할 때 재사용 단위를 검토하며, 배포/원격 갱신처럼 쓰기 권한이 필요한 작업은 검증 작업과 분리한다.
+
 각 검사는 이름, 검증 범위, 실행 조건과 결과 근거를 명시한다. 필수 검사는 제출된 최신 변경에서 실제 성공을 확인한 뒤 보호 규칙에 등록한다. 이름 변경/제거는 해당 보호 규칙도 함께 갱신한다. 조건부 실행으로 생긴 누락이나 일부 실패를 전체 성공으로 바꾸지 않으며, 필수 workflow의 경로 필터 때문에 결과가 영원히 Pending에 머무는 구성도 피한다.
 
-현재 후보는 코드의 Windows 자동 검사와 WIKI 내부 링크 검사다. 설치/업데이트/복구, 배포물 빌드, 다른 지원 환경과 보안 검사는 실제 기능과 위험이 생길 때 추가한다. 호스팅된 Windows 실행기의 검사는 실제 Windows 11 사용 검증을 대체하지 않는다. 이 기준은 확장 방침이며 아직 CI가 구현되거나 필수 검사로 등록됐다는 뜻은 아니다.
+현재 코드의 Windows 검사 연결은 위 절에, WIKI 내부 링크 검사의 적용 상태와 실행 방법은 WIKI 기여 안내에 둔다. 설치/업데이트/복구, 배포물 빌드, 다른 지원 환경과 보안 검사는 실제 기능과 위험이 생길 때 추가한다. 호스팅된 Windows 실행기의 검사는 실제 Windows 11 사용 검증을 대체하지 않는다. 이 기준은 확장 방침이며 개별 검사의 실제 성공이나 필수 등록을 증명하지 않는다.
 
 ## 배포 전 확인
 
