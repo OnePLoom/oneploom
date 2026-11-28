@@ -7,6 +7,7 @@ from pathlib import Path
 import sys
 
 from .project import Problem, choose_project, find_module, read_catalog, resolve_project
+from .connection import resolve_connection
 from .windows import catalog_path
 
 
@@ -17,7 +18,7 @@ class Parser(argparse.ArgumentParser):
 
 
 def parse_args(argv):
-    parser = Parser(prog="oneploom", description="프로젝트의 OnepLoom을 찾아 실행을 준비합니다. 현재는 발견 기능의 개발 작업본입니다.", allow_abbrev=False)
+    parser = Parser(prog="oneploom", description="프로젝트의 OnepLoom과 WIKI 위치를 확인합니다. 현재는 실행 전 확인 기능의 개발 작업본입니다.", allow_abbrev=False)
     parser.add_argument("--version", action="version", version="OnepLoom 개발 작업본 (릴리스 전)")
     commands = parser.add_subparsers(dest="command")
     for name in ("start", "resume"):
@@ -65,6 +66,7 @@ def main(argv=None):
             stream.reconfigure(encoding="utf-8")
     args = None
     root = None
+    connection = None
     try:
         args = parse_args(argv)
         if args is None:
@@ -85,9 +87,10 @@ def main(argv=None):
                 if args.json:
                     raise Problem("project_selection_required", "프로젝트 선택이 필요합니다. start --project PATH로 대상을 지정해 주세요.", 3)
                 root = resolve_project(choose_project(read_catalog(catalog_path()), sys.stdin, sys.stdout), cwd)
-            find_module(root)
-            # 발견은 성공해도 WIKI/권한/호스트 준비가 없으면 실행 준비 완료가 아니다.
-            raise Problem("runtime_not_implemented", "프로젝트와 설치 설정을 확인했습니다. 이 개발 작업본에는 Codex 실행과 연결 준비가 아직 구현되지 않았습니다.", 5)
+            module = find_module(root)
+            connection = resolve_connection(root, module)
+            # 경로를 읽을 수 있어도 Codex의 권한 확인과 실행 준비가 끝난 것은 아니다.
+            raise Problem("runtime_not_implemented", "프로젝트와 WIKI 위치를 확인했습니다. 연결 저장과 Codex의 권한 확인 및 실행은 아직 구현되지 않았습니다.", 5)
         code = 0
     except Problem as error:
         code = error.code
@@ -102,6 +105,8 @@ def main(argv=None):
                   "reason": error.reason, "message": str(error)}
         if root is not None:
             result["project_root"] = str(root)
+        if connection is not None:
+            result["wiki_root"] = str(connection.wiki_root)
     except KeyboardInterrupt:
         code = 4
         result = {"operation": args.command if args is not None else None, "stage": "prepare",

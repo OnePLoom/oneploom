@@ -125,12 +125,21 @@ class RoutingTests(unittest.TestCase):
 
     def test_current_project_does_not_depend_on_catalog(self):
         root = Path.cwd()
-        with patch("oneploom.cli.resolve_project", return_value=root), patch("oneploom.cli.find_module"), patch("oneploom.cli.catalog_path") as catalog, contextlib.redirect_stdout(io.StringIO()) as output:
+        with patch("oneploom.cli.resolve_project", return_value=root), patch("oneploom.cli.find_module") as module, patch("oneploom.cli.resolve_connection", return_value=None) as connection, patch("oneploom.cli.catalog_path") as catalog, contextlib.redirect_stdout(io.StringIO()) as output:
             self.assertEqual(main(["start", "--preview", "--json"]), 5)
         catalog.assert_not_called()
+        connection.assert_called_once_with(root, module.return_value)
         result = json.loads(output.getvalue())
         self.assertEqual(result["reason"], "runtime_not_implemented")
         self.assertEqual(result["status"], "unsupported")
+
+    def test_interrupted_connection_reports_cancelled(self):
+        with patch("oneploom.cli.resolve_project", return_value=Path.cwd()), patch("oneploom.cli.find_module"), patch("oneploom.cli.resolve_connection", side_effect=KeyboardInterrupt), contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(main(["start", "--preview", "--json"]), 4)
+        result = json.loads(output.getvalue())
+        self.assertEqual(result["status"], "cancelled")
+        self.assertEqual(result["reason"], "user_cancelled")
+        self.assertNotIn("wiki_root", result)
 
 
 if __name__ == "__main__":

@@ -166,14 +166,18 @@ class ProjectTests(unittest.TestCase):
         before = {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in self.root.rglob("*") if p.is_file()}
         result = find_module(self.root)
         after = {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in self.root.rglob("*") if p.is_file()}
-        self.assertEqual(result, self.root / "oneploom")
+        self.assertEqual(result.path, self.root / "oneploom")
+        self.assertEqual(result.project_id, "test-project")
+        self.assertEqual(result.wiki, {"path": "docs", "map": "map.json"})
+        self.assertIsNone(result.local)
         self.assertEqual(before, after)
         self.assertFalse((self.root / ".harness").exists())
 
     def test_custom_install_is_used(self):
         self.install_fixture("tools/custom", self.local(module_path="tools/custom"))
         result = find_module(self.root)
-        self.assertEqual(result, self.root / "tools/custom")
+        self.assertEqual(result.path, self.root / "tools/custom")
+        self.assertEqual(result.local, self.local(module_path="tools/custom"))
 
     def test_missing_registered_location_does_not_fall_back(self):
         self.install_fixture(local=self.local(module_path="missing"))

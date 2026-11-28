@@ -1,6 +1,7 @@
 """프로젝트와 설정을 읽기 전용으로 확인한다. 설치나 코드 실행은 하지 않는다."""
 
 import ctypes
+from dataclasses import dataclass
 import json
 import os
 from pathlib import Path, PureWindowsPath
@@ -15,6 +16,16 @@ class Problem(Exception):
         super().__init__(message)
         self.reason = reason
         self.code = code
+
+
+@dataclass
+class Module:
+    """발견한 위치와 읽은 설정. 설치 소유나 실행 권한의 증명은 아니다."""
+
+    path: Path
+    project_id: str
+    wiki: dict
+    local: dict | None
 
 
 def _unique_object(pairs):
@@ -71,6 +82,16 @@ def windows_path(value, *, absolute=False, relative=False):
         if any(c in part for c in '<>:"|?*') or part.endswith((" ", ".")) or device:
             raise ValueError("Windows에서 사용할 수 없거나 모호한 경로입니다.")
     return path
+
+
+def check_local_path(path):
+    """해결된 실제 경로와 드라이브 종류를 확인한다. 네트워크 매핑도 거부한다."""
+    windows_path(str(path), absolute=True)
+    drive_type = ctypes.WinDLL("kernel32", use_last_error=True).GetDriveTypeW
+    drive_type.argtypes = [ctypes.c_wchar_p]
+    drive_type.restype = ctypes.c_uint
+    if drive_type(path.anchor) not in (2, 3, 5, 6):
+        raise ValueError("네트워크 또는 종류를 확인할 수 없는 드라이브는 지원하지 않습니다.")
 
 
 def git_root(directory):
@@ -131,14 +152,9 @@ def resolve_project(value, cwd):
         if not path.is_dir():
             raise Problem("invalid_project", "프로젝트 경로는 디렉토리여야 합니다.")
         try:
-            windows_path(str(path), absolute=True)
+            check_local_path(path)
         except ValueError as error:
             raise Problem("unsupported_project_location", "실제 대상은 지원하는 Windows 로컬 경로여야 합니다.", 5) from error
-        drive_type = ctypes.WinDLL("kernel32", use_last_error=True).GetDriveTypeW
-        drive_type.argtypes = [ctypes.c_wchar_p]
-        drive_type.restype = ctypes.c_uint
-        if drive_type(path.anchor) not in (2, 3, 5, 6):
-            raise Problem("unsupported_project_location", "네트워크 또는 종류를 확인할 수 없는 드라이브는 지원하지 않습니다.", 5)
         root = git_root(path)
         if root is None:
             if not explicit:
@@ -276,4 +292,4 @@ def find_module(root):
     entry = _inside(module / "cli.py", module)
     if not entry.is_file():
         raise Problem("invalid_config", "프로젝트 진입 파일 cli.py가 일반 파일이 아닙니다.")
-    return module
+    return Module(module, identifier, wiki, local)
